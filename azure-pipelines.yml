@@ -1,0 +1,58 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+  - checkout: self
+
+  - script: |
+      echo "Installing Node.js"
+      choco install nodejs-lts -y
+    displayName: 'Install Node.js'
+
+  - script: |
+      echo "Upgrading to the latest version of Java (OpenJDK)"
+      choco upgrade openjdk -y
+    displayName: 'Upgrade to Latest Java Version'
+
+  - script: |
+      echo "Setting JAVA_HOME"
+      set JAVA_HOME=C:\Program Files\OpenJDK\jdk-22.0.2
+      echo "JAVA_HOME is set to: %JAVA_HOME%"
+    displayName: 'Set JAVA_HOME'
+
+  - script: |
+      echo "Refreshing environment variables"
+      refreshenv
+    displayName: 'Refresh Environment Variables'
+
+  - script: |
+      echo "Verifying Java setup before Gradle build"
+      java -version
+      echo "JAVA_HOME is set to: %JAVA_HOME%"
+    displayName: 'Verify Java Setup'
+
+  - script: |
+      echo "Installing project dependencies"
+      npm install
+    displayName: 'Install Dependencies'
+
+  - script: |
+      echo "Building the Android project in release mode using Java 22"
+      cd android
+      .\gradlew.bat --no-daemon assembleRelease
+    displayName: 'Build Android Release APK'
+
+  - script: |
+      echo "Preparing artifacts for App Center"
+      mkdir -p $(Build.ArtifactStagingDirectory)/android
+      cp -r android/app/build/outputs/apk/release/app-release.apk $(Build.ArtifactStagingDirectory)/android/
+    displayName: 'Prepare Artifacts'
+
+  - publish: $(Build.ArtifactStagingDirectory)
+    artifact: drop
+    displayName: 'Publish Artifacts'
